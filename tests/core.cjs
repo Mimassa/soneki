@@ -1,0 +1,35 @@
+// Test tooling only; the app has no Node dependency or build step.
+const {readFileSync}=require('node:fs');
+const vm=require('node:vm');
+const assert=require('node:assert/strict');
+const html=readFileSync(require('node:path').join(__dirname,'../index.html'),'utf8');
+const script=html.match(/<script>([\s\S]*?)<\/script>/)[1];
+new vm.Script(script);
+const context=vm.createContext({__SONEKI_TEST__:true,document:{addEventListener(){}},Date,crypto:require('node:crypto').webcrypto});
+vm.runInContext(script+';globalThis.core=Core;',context);
+const C=context.core;
+const at='2026-01-31T10:00:00+09:00';
+const p={id:'p1',currencyPair:'USD/JPY',side:'buy',quantity:'1',executionPrice:'153.250',executedAt:at,createdAt:at,updatedAt:at};
+const settlement=(id,q,profit,swap,date)=>({id,positionId:'p1',quantity:q,executionPrice:'153.75',executedAt:date,createdAt:at,updatedAt:at,pipsProfit:'5',positionProfit:profit,swapProfit:swap});
+const s1=settlement('s1','.5','25000','120',at);s1.quantity='0.5';
+const s2=settlement('s2','0.5','-7500','380','2026-02-01T10:00:00+09:00');
+const backup=()=>({schemaVersion:1,exportedAt:at,applicationVersion:'1.0.0',positions:[{...p}],settlements:[{...s1},{...s2}],settings:{currencyPairs:['USD/JPY'],lastBackupAt:null,lastDataChangeAt:null,applicationVersion:'1.0.0'}});
+let tests=0;function test(name,fn){fn();tests++;console.log('PASS',name)}
+test('partial settlement total is 18000',()=>assert.equal(C.stats([s1,s2]).total,'18000'));
+test('decimal quantity comparison is exact',()=>assert.equal(C.sum([{q:'0.1'},{q:'0.2'}],x=>x.q),'0.3'));
+test('valid backup roundtrip',()=>assert.equal(C.valid(JSON.parse(JSON.stringify(backup()))).settlements.length,2));
+test('over-settlement rejected',()=>{const b=backup();b.settlements[1].quantity='0.50000001';assert.throws(()=>C.valid(b))});
+test('parent quantity edit rejected',()=>{const b=backup();b.positions[0].quantity='0.9';assert.throws(()=>C.valid(b))});
+test('sell position supported',()=>{const b=backup();b.positions[0].side='sell';C.valid(b)});
+test('settlement dates cross month',()=>{assert.equal(C.stats([s1].filter(s=>s.executedAt.startsWith('2026-01'))).total,'25120');assert.equal(C.stats([s2].filter(s=>s.executedAt.startsWith('2026-02'))).total,'-7120')});
+test('zero profit in win rate denominator',()=>assert.equal(C.stats([s1,s2,{...s1,positionProfit:'0',swapProfit:'0'}]).win,'33.3'));
+test('pips are not weighted',()=>assert.equal(C.stats([s1,s2]).pips,'10'));
+test('duplicate IDs rejected',()=>{const b=backup();b.settlements[1].id='p1';assert.throws(()=>C.valid(b))});
+test('orphan rejected',()=>{const b=backup();b.settlements[0].positionId='missing';assert.throws(()=>C.valid(b))});
+test('invalid dates rejected',()=>assert.throws(()=>C.date('2026-02-30T10:00:00+09:00')));
+test('date before opening rejected',()=>{const b=backup();b.settlements[0].executedAt='2025-01-01T00:00:00+09:00';assert.throws(()=>C.valid(b))});
+test('nonfinite and invalid numbers rejected',()=>{for(const v of [NaN,Infinity,'1e3','0.000000001','',null,{},true])assert.throws(()=>C.decimal(v))});
+test('schema and required metadata rejected',()=>{for(const key of ['schemaVersion','exportedAt','settings']){const b=backup();delete b[key];assert.throws(()=>C.valid(b))}});
+test('negative and zero quantities rejected',()=>{for(const v of ['0','-1']){const b=backup();b.positions[0].quantity=v;assert.throws(()=>C.valid(b))}});
+test('precise values retained',()=>assert.equal(C.str(C.decimal('12345678901234.12345678')),'12345678901234.12345678'));
+console.log(`${tests} core checks passed`);
