@@ -1,0 +1,6 @@
+fx-backup-*.json
+fx-settlements-*.csv
+node_modules/
+.DS_Store
+test-results/
+*.log
