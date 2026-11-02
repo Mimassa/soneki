@@ -2,6 +2,8 @@
 
 iPhone Safariを主対象とした、端末内保存のFX取引ノートです。HTML/CSS/Vanilla JavaScriptのみで動作し、アプリのビルド・外部ライブラリ・CDN・外部API・ログインは不要です。
 
+表示はダークモードです。損益は利益を赤、損失を緑、ゼロを通常色で表示します。棒グラフも同じ配色です。
+
 ## 利用方法
 
 公開先: https://mimassa.github.io/soneki/
