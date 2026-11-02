@@ -32,4 +32,5 @@ test('nonfinite and invalid numbers rejected',()=>{for(const v of [NaN,Infinity,
 test('schema and required metadata rejected',()=>{for(const key of ['schemaVersion','exportedAt','settings']){const b=backup();delete b[key];assert.throws(()=>C.valid(b))}});
 test('negative and zero quantities rejected',()=>{for(const v of ['0','-1']){const b=backup();b.positions[0].quantity=v;assert.throws(()=>C.valid(b))}});
 test('precise values retained',()=>assert.equal(C.str(C.decimal('12345678901234.12345678')),'12345678901234.12345678'));
+test('font preference validates and legacy backups remain supported',()=>{const b=backup();C.valid(b);b.settings.numberFont='mono';C.valid(b);b.settings.numberFont='invalid';assert.throws(()=>C.valid(b))});
 console.log(`${tests} core checks passed`);
