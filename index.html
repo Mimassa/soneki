@@ -16,10 +16,17 @@ span.digits{display:inline;color:inherit;font-size:inherit;margin:0;font-family:
 .font-preview,.row>*,.list-button>*{min-width:0}.list-button{flex-wrap:wrap;overflow-wrap:anywhere}
 .exception-list{max-height:420px;overflow-y:auto}.exception-panel .number{overflow-wrap:anywhere}
 #app,dialog{overflow-wrap:anywhere}.chart text{font-family:inherit}
+
+.settlement-totals{display:flex;flex-direction:column;align-items:flex-end;gap:12px;max-width:100%;margin-left:auto;font-variant-numeric:tabular-nums}
+.settlement-amount,.settlement-pips{display:inline-flex;align-items:baseline;justify-content:flex-end;gap:6px;max-width:100%;font-size:16px}
+.settlement-pips{font-size:12px}
+.settlement-value{min-width:0;overflow-wrap:anywhere;text-align:right}
+.settlement-unit{flex:none;white-space:nowrap;color:#e5ece9;font-size:12px}
+.selected-settlements .settlement-info{flex:1 1 140px}
 </style></head><body><header><div class="row"><span class="mark">↗</span><div class="brand">そねき<small>FX TRADING JOURNAL</small></div></div><span class="privacy">◉ データはこの端末だけに保存</span></header><div id="update" hidden class="notice"></div><main id="app"><p>取引ノートを開いています…</p></main><nav aria-label="メインメニュー"></nav><dialog id="editor"></dialog><div id="toast" role="status" hidden></div>
 <script>
 'use strict';
-const VERSION='1.1.1', SCALE=100000000n;
+const VERSION='1.1.2', SCALE=100000000n;
 const NUMBER_FONTS={
  system:{label:'標準（システム）',family:'-apple-system, BlinkMacSystemFont, sans-serif'},
  sans:{label:'サンセリフ（Helvetica / Arial）',family:'"Helvetica Neue", Arial, sans-serif'},
@@ -94,10 +101,10 @@ function initialCalendarDay(){
 function tradingSettlements(rows,prefix=''){
  return rows.filter(s=>{const date=getTradingDate(s.executedAt);return date!==null&&date.startsWith(prefix)});
 }
-function settlementList(rows){
+function settlementList(rows,showPips=false){
  return rows.slice().sort((a,b)=>Date.parse(a.executedAt)-Date.parse(b.executedAt)).map(s=>{
   const p=data.positions.find(p=>p.id===s.positionId);
-  return `<button class="list-button" data-jump="${esc(s.id)}"><span><b>${esc(p.currencyPair)}</b><small>${p.side==='buy'?'売り':'買い'} · ${fmt(s.quantity)} Lot<br>実約定 ${esc(s.executedAt.replace('T',' ').replace('+09:00',''))} JST</small></span>${money(Core.total(s))}<span aria-hidden="true">›</span></button>`;
+  return `<button class="list-button" data-jump="${esc(s.id)}"><span class="settlement-info"><b>${esc(p.currencyPair)}</b><small>${p.side==='buy'?'売り':'買い'} · ${fmt(s.quantity)} Lot<br>実約定 ${esc(s.executedAt.replace('T',' ').replace('+09:00',''))} JST</small></span>${showPips?`<span class="settlement-totals"><span class="settlement-amount"><span class="settlement-value ${cls(Core.total(s))}">${signed(Core.total(s))}</span><span class="settlement-unit">円</span></span><span class="settlement-pips"><span class="settlement-value ${cls(s.pipsProfit)}">${signed(s.pipsProfit)}</span><span class="settlement-unit">Pips</span></span></span>`:money(Core.total(s))}<span aria-hidden="true">›</span></button>`;
  }).join('');
 }
 function exceptionsPanel(selectedPair){
@@ -157,7 +164,7 @@ function calendar(){
  <div class="hero"><div class="row between"><span class="muted">${year}年${m}月の決済損益</span><span class="tag">${stats.count} 件の決済</span></div><div class="amount ${cls(stats.total)}">${signed(stats.total)} <span style="font-size:16px">円</span></div><span class="muted">FX取引日基準 · 休場時間の決済は別枠表示</span></div>
  <div class="row between toolbar"><div class="row"><button data-month="-1" aria-label="前月">‹</button><strong>${year}年 ${m}月</strong><button data-month="1" aria-label="翌月">›</button></div><select id="calendar-pair" aria-label="通貨ペア">${options(pair)}</select></div>
  <section class="card"><div class="calendar">${['月','火','水','木','金'].map(d=>`<div class="weekday">${d}</div>`).join('')}${cells}</div><p class="muted">翌朝の決済は前取引日に計上します。標準時間は06:50、夏時間は05:50まで（日本時間）。</p></section>
- <section class="card selected-settlements"><div class="row between"><h2>${esc(day.slice(5).replace('-','月'))}日の決済</h2><span class="muted">${selected.length}件</span></div><p class="muted">FX取引日 ${day} / 明細は実際の約定日時</p>${selected.length?settlementList(selected):'<div class="empty-state">この取引日の決済はありません。<br>約定履歴から取引を記録しましょう。</div>'}</section>
+ <section class="card selected-settlements"><div class="row between"><h2>${esc(day.slice(5).replace('-','月'))}日の決済</h2><span class="muted">${selected.length}件</span></div><p class="muted">FX取引日 ${day} / 明細は実際の約定日時</p>${selected.length?settlementList(selected,true):'<div class="empty-state">この取引日の決済はありません。<br>約定履歴から取引を記録しましょう。</div>'}</section>
  <section class="card monthly-summary"><h2>月間サマリ（FX取引日）</h2>${summary(xs)}</section>${exceptionsPanel(pair)}`;
 }
 function history(){return`<div class="row between"><div><div class="eyebrow">TRADE JOURNAL</div><h1>約定履歴</h1></div><button class="primary" data-new>＋ 新規約定</button></div><p class="muted">新規約定ごとに、決済までの記録をまとめて。</p>${data.positions.length?data.positions.slice().sort((a,b)=>b.executedAt.localeCompare(a.executedAt)).map(p=>{const ss=children(p),closed=Core.sum(ss,x=>x.quantity),remaining=Core.str(Core.decimal(p.quantity)-Core.decimal(closed)),total=Core.sum(ss,Core.total);return`<article class="card trade" id="p-${esc(p.id)}"><button class="trade-head" data-expand="${esc(p.id)}" aria-expanded="${expanded.has(p.id)}"><div class="row between"><div class="row"><span class="tag ${p.side==='buy'?'positive':'negative'}">${p.side==='buy'?'買い':'売り'}</span><strong>${esc(p.currencyPair)}</strong></div><span class="tag">${Core.decimal(remaining)===0n?'全決済':ss.length?'一部決済':'未決済'}</span></div><div class="row between"><b>${fmt(p.quantity)} Lot <span class="muted">@ ${fmt(p.executionPrice)}</span></b><span>${expanded.has(p.id)?'⌃':'⌄'}</span></div><div class="row between"><span class="muted">${dt(p.executedAt)} JST</span>${money(total)}</div><div class="row between muted"><span>決済済 ${fmt(closed)} Lot</span><span>未決済 ${fmt(remaining)} Lot</span></div></button>${expanded.has(p.id)?`<div class="actions row"><button class="primary" data-settle="${esc(p.id)}" ${Core.decimal(remaining)===0n?'disabled':''}>＋ 決済を追加</button><button data-edit-p="${esc(p.id)}">新規約定を編集</button><button class="danger" data-delete-p="${esc(p.id)}">削除</button></div><div class="children">${ss.length?ss.map(s=>`<section class="child ${highlight===s.id?'highlight':''}" id="s-${esc(s.id)}"><div class="row between"><b>${p.side==='buy'?'売り':'買い'} ${fmt(s.quantity)} Lot</b>${money(Core.total(s))}</div><div class="muted" style="margin-top:8px">${dt(s.executedAt)} JST</div><dl class="detail"><dt>決済価格</dt><dd>${fmt(s.executionPrice)}</dd><dt>pips損益</dt><dd class="${cls(s.pipsProfit)}">${signed(s.pipsProfit)}</dd><dt>建玉損益</dt><dd>${money(s.positionProfit)}</dd><dt>累計スワップ</dt><dd>${money(s.swapProfit)}</dd></dl><div class="row actions"><button data-edit-s="${esc(s.id)}">編集</button><button data-delete-s="${esc(s.id)}" class="danger">削除</button></div></section>`).join(''):'<p class="empty-state">決済はまだ登録されていません。</p>'}</div>`:''}</article>`}).join(''):'<section class="card empty-state"><div style="font-size:38px;color:#8ca895">＋</div><h2>最初の取引を記録しましょう</h2><p>新規約定を追加すると、部分決済と<br>確定損益をまとめて管理できます。</p><button class="primary" data-new>新規約定を追加</button></section>'}`}
