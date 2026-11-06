@@ -8,7 +8,6 @@ span.digits{display:inline;color:inherit;font-size:inherit;margin:0;font-family:
 .number,.font-preview,#trade-form input:not([type="datetime-local"]),input[type="number"]{font-family:var(--number-font);font-variant-numeric:tabular-nums}
 .font-preview{font-size:24px;overflow-wrap:anywhere;line-height:1.8}
 
-.calendar-view .positive{color:var(--green)}.calendar-view .negative{color:var(--red)}
 .font-list{max-height:340px;overflow-y:auto;display:grid;gap:8px;padding:4px}
 .font-option{text-align:left;width:100%;min-width:0;white-space:normal;overflow-wrap:anywhere}
 .font-option[aria-pressed="true"]{border:2px solid var(--green)}
@@ -20,7 +19,7 @@ span.digits{display:inline;color:inherit;font-size:inherit;margin:0;font-family:
 </style></head><body><header><div class="row"><span class="mark">↗</span><div class="brand">そねき<small>FX TRADING JOURNAL</small></div></div><span class="privacy">◉ データはこの端末だけに保存</span></header><div id="update" hidden class="notice"></div><main id="app"><p>取引ノートを開いています…</p></main><nav aria-label="メインメニュー"></nav><dialog id="editor"></dialog><div id="toast" role="status" hidden></div>
 <script>
 'use strict';
-const VERSION='1.1.0', SCALE=100000000n;
+const VERSION='1.1.1', SCALE=100000000n;
 const NUMBER_FONTS={
  system:{label:'標準（システム）',family:'-apple-system, BlinkMacSystemFont, sans-serif'},
  sans:{label:'サンセリフ（Helvetica / Arial）',family:'"Helvetica Neue", Arial, sans-serif'},
@@ -121,7 +120,7 @@ const copy=()=>structuredClone(data), children=p=>data.settlements.filter(s=>s.p
 function filtered(p=pair){return data.settlements.filter(s=>!p||data.positions.find(x=>x.id===s.positionId)?.currencyPair===p)}
 function options(value,all=true){return(all?'<option value="">全通貨ペア</option>':'')+data.settings.currencyPairs.map(p=>`<option ${p===value?'selected':''} value="${esc(p)}">${esc(p)}</option>`).join('')}
 function toast(s){$('#toast').textContent=s;$('#toast').hidden=false;setTimeout(()=>$('#toast').hidden=true,3500)}
-function summary(xs,full=false){const s=Core.stats(xs),items=[['建玉損益',s.position,'円'],['累計スワップ損益',s.swap,'円'],['決済損益',s.total,'円'],['pips損益',s.pips,'pips']];if(full)items.push(['決済件数',String(s.count),'件'],['勝率',s.win,'%'],['平均利益',s.avgWin,'円'],['平均損失',s.avgLoss,'円']);return'<div class="stats">'+items.map(([k,v,u])=>`<div class="stat"><span>${k}</span><strong class="${cls(v)}">${fmt(v)} <small>${u}</small></strong></div>`).join('')+'</div>'}
+function summary(xs,full=false){const s=Core.stats(xs),items=[['建玉損益',s.position,'円'],['累計スワップ損益',s.swap,'円'],['決済損益',s.total,'円'],['pips損益',s.pips,'pips']];if(full)items.push(['決済件数',String(s.count),'件',false],['勝率',s.win,'%',false],['平均利益',s.avgWin,'円'],['平均損失',s.avgLoss,'円']);return'<div class="stats">'+items.map(([k,v,u,isProfit=true])=>`<div class="stat"><span>${k}</span><strong class="${isProfit?cls(v):''}">${fmt(v)} <small>${u}</small></strong></div>`).join('')+'</div>'}
 function selectedFontFamily(key=data.settings.numberFont||'system'){
  return (NUMBER_FONTS[key]||NUMBER_FONTS.system).family+', "Hiragino Kaku Gothic ProN", "Hiragino Sans", -apple-system, sans-serif';
 }

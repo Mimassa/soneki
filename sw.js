@@ -1,6 +1,6 @@
 'use strict';
 // Increment for every release that changes cached files. Never touch IndexedDB.
-const CACHE = 'soneki-static-v1.1.0';
+const CACHE = 'soneki-static-v1.1.1';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));
